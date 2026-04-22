@@ -1,9 +1,10 @@
-﻿using BepInEx;
+using BepInEx;
 using HarmonyLib;
+using System;
 
 namespace CasualtiesUnknownMods
 {
-    [BepInPlugin("com.cetteon.casu.neuralboosterfix", "NeuralBooster Fix", "1.0.2")]
+    [BepInPlugin("com.cetteon.casu.neuralboosterfix", "NeuralBooster Fix", "1.1.0")]
     public class NeuralBoosterFix : BaseUnityPlugin
     {
         private void Awake()
@@ -26,25 +27,37 @@ namespace CasualtiesUnknownMods
 
                 info.useAction = (Body body, Item item) =>
                 {
-                    // run the original action but suppress eye removal
                     NeuralBoosterContext.IsUsingNeuralBooster = true;
                     try
                     {
+                        // run original action but suppress eye removal
                         originalAction(body, item);
+
+                        // apply diminishing scaling to benefits
+                        int useCount = ++NeuralBoosterContext.UseCount;
+                        float scale = 1f + (0.25f / (float)Math.Sqrt(useCount));
+
+                        body.maxSpeed *= scale;
+                        body.moveForce *= scale;
+                        body.jumpSpeed *= scale;
+
+                        // drawbacks remain unchanged
                     }
                     finally
                     {
                         NeuralBoosterContext.IsUsingNeuralBooster = false;
                     }
                 };
+
             }
         }
     }
 
-    // static flag to track when neuralbooster is being used
+    // static context to track usage
     public static class NeuralBoosterContext
     {
         public static bool IsUsingNeuralBooster = false;
+        public static int UseCount = 0;
     }
 
     // patch Body.RemoveEye to skip if called during neuralbooster use
@@ -55,8 +68,7 @@ namespace CasualtiesUnknownMods
         {
             if (NeuralBoosterContext.IsUsingNeuralBooster)
             {
-                // suppress eye removal only during neuralbooster use
-                return false;
+                return false; // suppress eye removal only during neuralbooster use
             }
             return true;
         }
