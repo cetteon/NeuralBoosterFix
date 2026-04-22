@@ -33,6 +33,10 @@ namespace CasualtiesUnknownMods
                     {
                         originalAction?.Invoke(body, item);
 
+                        body.maxSpeed /= 1.25f;
+                        body.moveForce /= 1.25f;
+                        body.jumpSpeed /= 1.2f;
+
                         int useCount = Interlocked.Increment(ref NeuralBoosterContext.UseCount);
                         float movescale = 1f + (0.25f / (float)Math.Sqrt(useCount));
                         float jumpscale = 1f + (0.2f / (float)Math.Sqrt(useCount));
