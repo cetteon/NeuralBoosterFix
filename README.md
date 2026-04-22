@@ -1,5 +1,5 @@
 # NeuralBooster Fix
-BepInEx plugin for Casualties: Unknown that prevents the neural booster item from annihilating your eyeballs on subsequent uses, while keeping all the other downsides intact.
+BepInEx plugin for Casualties: Unknown that prevents the neural booster item from annihilating your eyeballs on subsequent uses, while keeping all the other downsides intact. Includes diminished scaling to balance it.
 
 # Installation
 ## Installing BepInEx
