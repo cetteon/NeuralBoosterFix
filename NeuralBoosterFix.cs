@@ -1,16 +1,17 @@
 using BepInEx;
 using HarmonyLib;
 using System;
+using System.Threading;
 
 namespace CasualtiesUnknownMods
 {
-    [BepInPlugin("com.cetteon.casu.neuralboosterfix", "NeuralBooster Fix", "1.1.0")]
+    [BepInPlugin("com.cetteon.casu.neuralboosterfix", "NeuralBooster Fix", "1.1.1")]
     public class NeuralBoosterFix : BaseUnityPlugin
     {
+        private readonly Harmony _harmony = new Harmony("com.cetteon.casu.neuralboosterfix");
         private void Awake()
         {
-            Harmony harmony = new Harmony("com.cetteon.casu.neuralboosterfix");
-            harmony.PatchAll();
+            _harmony.PatchAll();
             Logger.LogInfo("NeuralBooster Fix loaded!");
         }
     }
@@ -21,34 +22,31 @@ namespace CasualtiesUnknownMods
     {
         static void Postfix()
         {
-            if (Item.GlobalItems.TryGetValue("neuralbooster", out ItemInfo info))
+            if (Item.GlobalItems.TryGetValue("neuralbooster", out var info) && info.useAction != null)
             {
                 var originalAction = info.useAction;
 
-                info.useAction = (Body body, Item item) =>
+                info.useAction = (body, item) =>
                 {
                     NeuralBoosterContext.IsUsingNeuralBooster = true;
                     try
                     {
-                        // run original action but suppress eye removal
-                        originalAction(body, item);
+                        originalAction?.Invoke(body, item);
 
-                        // apply diminishing scaling to benefits
-                        int useCount = ++NeuralBoosterContext.UseCount;
-                        float scale = 1f + (0.25f / (float)Math.Sqrt(useCount));
+                        int useCount = Interlocked.Increment(ref NeuralBoosterContext.UseCount);
+                        float movescale = 1f + (0.25f / (float)Math.Sqrt(useCount));
+                        float jumpscale = 1f + (0.2f / (float)Math.Sqrt(useCount));
 
-                        body.maxSpeed *= scale;
-                        body.moveForce *= scale;
-                        body.jumpSpeed *= scale;
+                        body.maxSpeed *= movescale;
+                        body.moveForce *= movescale;
+                        body.jumpSpeed *= jumpscale;
 
-                        // drawbacks remain unchanged
                     }
                     finally
                     {
                         NeuralBoosterContext.IsUsingNeuralBooster = false;
                     }
                 };
-
             }
         }
     }
@@ -56,21 +54,14 @@ namespace CasualtiesUnknownMods
     // static context to track usage
     public static class NeuralBoosterContext
     {
-        public static bool IsUsingNeuralBooster = false;
-        public static int UseCount = 0;
+        public static volatile bool IsUsingNeuralBooster;
+        public static int UseCount;
     }
 
     // patch Body.RemoveEye to skip if called during neuralbooster use
     [HarmonyPatch(typeof(Body), nameof(Body.RemoveEye))]
     class PatchRemoveEye
     {
-        static bool Prefix()
-        {
-            if (NeuralBoosterContext.IsUsingNeuralBooster)
-            {
-                return false; // suppress eye removal only during neuralbooster use
-            }
-            return true;
-        }
+        static bool Prefix() => !NeuralBoosterContext.IsUsingNeuralBooster;
     }
 }
